@@ -1,7 +1,7 @@
 # my_roms_tools
 基于MATLAB的ROMS区域海洋模式预处理、后处理工具包
 
-该工具包为本人进行ROMS相关科研时编写，非直接公开。有需要的，可发邮件申请。邮箱地址：autodotua@outlook.com
+该工具包为本人进行ROMS相关科研时编写，非直接公开。有需要的，可向我发邮件索取。邮箱地址：autodotua@outlook.com
 
 
 # 介绍
