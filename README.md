@@ -1,9 +1,9 @@
 # my_roms_tools
 基于MATLAB的ROMS区域海洋模式预处理、后处理工具包
 
-该工具包为本人进行ROMS相关科研时编写，暂时非直接公开。有需要的，可向我发邮件索取。邮箱地址：autodotua@outlook.com。
+该工具包为本人进行ROMS相关科研时编写。由于利益相关，`my_tools_project`不计划公开。确有需要的，可向我发邮件索取。邮箱地址：autodotua@outlook.com。
 
-将在后续公开代码，最迟公开时间：2024年6月。
+所有公开的代码可以免费用于学习、科研工作等，但不可用于商业行为，不可盈利。
 
 **如果您使用本人修改的工具（仅`my_tools_`前缀的目录为本人开发，其余来自[COAWST](https://github.com/DOI-USGS/COAWST)）做出了相关成果，如发表了论文等，恳请给本项目点个Star。**
 
@@ -532,7 +532,7 @@ mfiles目录下是一组Matlab的预处理/后处理工具
 
 ~~首先执行 `roms_create_grid_from_wrfinput`，从 `wrfinput`创建网格，在弹出的窗口中根据海岸线编辑水陆点；或执行 `roms_create_grid_core`，根据高程文件来创建网格。。然后执行 `roms_fill_grid_h`填充水深。~~
 
-## 边界场、初始场、全域逼近场
+## 边界场、初始场、气候态逼近场
 
 ### 下载HYCOM数据
 
@@ -608,159 +608,14 @@ create_roms_child_clm( roms_grid, roms_child_grid,  'Sandy_clm.nc', 'Sandy_clm_r
 - 网格文件：`roms_grid.nc`
 - 初始场文件：`roms_ini.nc `
 - 边界文件（若需要）：`roms_bdy.nc`
-- 全域逼近文件（若需要）：`roms_clm.nc`
+- 气候态逼近文件（若需要）：`roms_clm.nc`
 - 潮汐强迫文件（若需要）：`roms_tides.nc`
 - 河流强迫文件（若需要）：`roms_rivers.nc`
 
-# 其他
+# 注
 
-## ROMS创建嵌套网格
+- `my_tools_core\graph\ncl`下的数据和代码来自slandarer，具体见代码中的注释。
 
-由于暂时没有需求，因此没有写成工具。
-查看WRF网格和ROMS父网格的位置：
+- 部分代码基于COAWST工具包改编，而非本仓库原创。
 
-```matlab
-netcdf_load('wrfinput_d01') 
-figure 
-pcolorjw(XLONG,XLAT,double(1-LANDMASK)) 
-hold on 
-netcdf_load('wrfinput_d02') 
-pcolorjw(XLONG,XLAT,double(1-LANDMASK)) 
-plot(XLONG(1,:),XLAT(1,:),'r'); plot(XLONG(end,:),XLAT(end,:),'r') 
-plot(XLONG(:,1),XLAT(:,1),'r'); plot(XLONG(:,end),XLAT(:,end),'r') 
-% plot roms parent grid 
-netcdf_load(roms_grid); 
-plot(lon_rho(1,:),lat_rho(1,:),'k'); 
-plot(lon_rho(end,:),lat_rho(end,:),'k') 
-plot(lon_rho(:,1),lat_rho(:,1),'k'); 
-plot(lon_rho(:,end),lat_rho(:,end),'k') 
-text(-75,29,'roms parent grid') 
-text(-77,27,'wrf parent grid') 
-text(-77.2,34,'wrf child grid') 
-```
-
-确定ROMS子网格的位置：
-
-```matlab
-Istr=22; Iend=60; Jstr=26; Jend=54; %确定范围
-plot(lon_rho(Istr,Jstr),lat_rho(Istr,Jstr),'m+') 
-plot(lon_rho(Istr,Jend),lat_rho(Istr,Jend),'m+') 
-plot(lon_rho(Iend,Jstr),lat_rho(Iend,Jstr),'m+') 
-plot(lon_rho(Iend,Jend),lat_rho(Iend,Jend),'m+') 
-ref_ratio=3; %子网格的密度是父网格的3倍。计算公式是：(60-22)*3-1,(54-26)*3-1=116,86
-roms_child_grid='....nc'; 
-%coarse2fine是自定义函数，用于创建分辨率更高的ROMS网格。F = coarse2fine(Ginp,Gout,Gfactor,Imin,Imax,Jmin,Jmax)
-%给定一个粗分辨率nc文件(Ginp)，此函数在粗网格坐标(Imin,Jmin)和(Imax,Jmax)指定的区域中创建一个更细分辨率的网格。请注意(Imin,Jmin)和(Imax,Jmax)索引是根据psi点的，因为它实际上定义了精细网格的物理边界。网格细化系数用Gfactor指定。
-F=coarse2fine(roms_grid,roms_child_grid, ref_ratio,Istr,Iend,Jstr,Jend); 
-Gnames={roms_grid,roms_child_grid}; 
-[S,G]=contact(Gnames,'roms_contact.nc'); %这个输出文件之后用于in文件中的NGCNAME参数
-%contact是自定义函数，用于设置ROMS嵌套网格之间的接触点。contact(Gnames, Cname, Lmask, MaskInterp, Lplot)，参数分别为输入nc文件名、输出nc文件名，后面三个都有默认值。输入文件名需要按从大到小的顺序。
-```
-
-计算子网格的水深：
-
-```matlab
-netcdf_load(roms_child_grid) 
-load USeast_bathy.mat 
-h=griddata(h_lon,h_lat,h_USeast,lon_rho,lat_rho); %拟合，获得一个116*86的矩阵
-%vq = griddata(x,y,v,xq,yq) 使 v = f(x,y) 形式的曲面与向量 (x,y,v) 中的散点数据拟合。griddata 函数在 (xq,yq) 指定的查询点对曲面进行插值并返回插入的值 vq。曲面始终穿过 x 和 y 定义的数据点。
-h(isnan(h))=5; 
-h(2:end-1,2:end-1)=0.2*(h(1:end-2,2:end-1)+h(2:end-1,2:end-1)+h(3:end,2:end-1)+h(2:end-1,1:end-2)+h(2:end-1,3:end)); 
-ncwrite(roms_child_grid,'h',h)
-%下面都是画图
-figure 
-pcolorjw(lon_rho,lat_rho,h) 
-hold on 
-load coastline.mat 
-plot(lon,lat,'r') 
-caxis([5 2500]); colorbar 
-```
-
-基于WRF的掩膜重新计算ROMS的掩膜：
-
-```matlab
-netcdf_load('wrfinput_d01'); 
-%原文档中用的是TriScatteredInterp，但是MATLAB文档显示不推荐使用TriScatteredInterp，因此换成了scatteredInterpolant。这两个函数功能是相同的，不过TriScatteredInterp是老版函数
-F = scatteredInterpolant(double(XLONG(:)),double(XLAT(:)),double(1-LANDMASK(:)),'nearest'); 
-roms_mask=F(lon_rho,lat_rho); 
-
-water = double(roms_mask); 
-u_mask = water(1:end-1,:) & water(2:end,:); 
-v_mask= water(:,1:end-1) & water(:,2:end); 
-psi_mask= water(1:end-1,1:end-1) & water(1:end-1,2:end) & water(2:end,1:end-1) & water(2:end,2:end); 
-ncwrite(roms_child_grid,'mask_rho',roms_mask); 
-ncwrite(roms_child_grid,'mask_u',double(u_mask)); 
-ncwrite(roms_child_grid,'mask_v',double(v_mask)); 
-ncwrite(roms_child_grid,'mask_psi',double(psi_mask));
-
-%下面都是画图
-figure 
-pcolorjw(lon_rho,lat_rho,roms_mask) 
-hold on 
-plot(lon,lat,'r') 
-```
-
-## 海洋数据下载
-
-其中有个[网址](http://tds.hycom.org/thredds/dodsC/GLBa0.08/expt_90.9)，来自于[HYCOM](http://tds.hycom.org/thredds/catalog.html)（hybrid coordinate ocean model，混合坐标海洋模型）。这里选用的是GOFS 3.0: HYCOM + NCODA Global 1/12° Analysis (NRL)-[`GLBu0.08/expt_90.9 (2012-05 to 2013-08)/`](http://tds.hycom.org/thredds/catalogs/GLBu0.08/expt_90.9.html)，选择[Hindcast Data: May-2012 to Aug-2013](http://tds.hycom.org/thredds/catalogs/GLBu0.08/expt_90.9.html?dataset=GLBu0.08-expt_90.9)，然后选择OPeNDAP：[//tds.hycom.org/thredds/dodsC/GLBu0.08/expt_90.9](http://tds.hycom.org/thredds/dodsC/GLBu0.08/expt_90.9.html)，其中有个Data URL后面就是所需要的地址。
-
-> OPeNDAP是一个专门为本地系统透明的访问远程数据的客户端服务器系统，采用此系统客户端无需知道服务器端的存储格式、架构以及所采用的环境
-
-进入[Revision 41](https://coawstmodel.sourcerepo.com/coawstmodel/data/)，选择[tide](https://coawstmodel.sourcerepo.com/coawstmodel/data/tide/)，下载[adcirc..](https://coawstmodel.sourcerepo.com/coawstmodel/data/tide/adcirc_ec2001v2e_fix.mat)或[tpx_h.mat](https://coawstmodel.sourcerepo.com/coawstmodel/data/tide/tpx_h.mat)和[tpx_uv.mat](https://coawstmodel.sourcerepo.com/coawstmodel/data/tide/tpx_uv.mat)。这个网站用IE才能打开，Chromium打不开，因为加密方式太老了。
-
-编辑 `Tools/mfiles/tides/create_roms_tides`。修改 `Gname`到网格路径。修改 `g`到模拟的开始时间。如果用adcirc，那么修改 `if (adcirc)`后的路径。如果用ocu，那么修改上面到 `adcirc=0;osu=1`，然后修改 `if (osu)`后的路径。这里需要用ocu，用adcirc会报错。
-
-## SWAN生成边界场文件代码的修改
-
-在用户手册（3.4/3.7）中，提供了两种方法：TPAR (parametric foring files)或2D Spec files (spectral foring files)。但是由于数据源的格式和地址发生了改变，因此两种方法全部失效。在COAWST3.7中，更新了相关的Matlab工具，但是手册尚未更新。因此最新的工具进行介绍自己摸索出来的方法。
-
-目前此处数据源来自于：[NCEP WAVEWATCH III Hindcast and Reanalysis Archives](https://polar.ncep.noaa.gov/waves/hindcasts/multi_1/) 。数据介绍见 [README.txt](COAWST.assets\README.txt) 。
-
-打开 `Tools/mfiles/swan_forc/create_swanTpar_from_WW3.m`，编辑：
-
-```matlab
-working_dir='C:\Users\autod\Desktop\maria' %工作路径
-yearww3='2018' %年份
-mmww3='07' %月份
-modelgrid='C:\Users\autod\Desktop\maria\roms_grid.nc'; %SWAN（未测试）或者ROMS网格的路径
-specres=20; %每一条边界的长度，这个数值越大，生成的文件越少。
-ww3_grid='glo_30m' %数据源。这里选的glo_30m是全球30m数据。
-```
-
-~~可以直接执行，但是程序会下载整个月的数据，分辨率为3小时，每个小时的数据大约需要1分钟。目前不知道为什么要下载整个月的数据。~~
-
-~~对同目录下的 `readww3_2TPAR.m`进行修改，找到 `timeww3=ncread(hsurl,'time'); timeww3=timeww3(1:end-1);`这两行，这两行取了全部的月份。在这两行下面添加一行：`timeww3=[(<起始日>-1)*8:<结束日>*8];`（经查看，数据分辨率为3小时）~~
-
-~~这样就只会生成所需要的日期的边界数据了。~~
-
-~~生成的数据包括 `Bound_spec_command`和一系列的 `TPAR*.txt`。前者中的命令需要复制到SWAN的配置文件中。~~
-
-在[NCEI网站](https://www.ncei.noaa.gov/thredds-ocean/catalog/ncep/nww3/catalog.html)下载所需要的数据，进入所需要的年份和月份，进入 `gribs`，打开 `multi_1.glo_30m.tp|hs|dp.*.grb2`三个文件，选择其中的HTTPServer进行下载。也可以直接在[NCEP网站](https://polar.ncep.noaa.gov/waves/hindcasts/multi_1/)中下载。
-
-下载完之后是3个grib2文件，使用 `wgrib2.exe <输入grib2文件> -netcdf <输出nc文件>`转换为nc文件。
-
-由于OPeNDAP提供的变量名等与进入 `create_swanTpar_from_WW3`，修改：
-
-1. 重新指定 `tpurl`、`hsurl`、`dpurl`的链接为三个nc文件的路径
-2. 修改变量：
-
-   1. `ncread(hsurl,'lon')`→`ncread(hsurl,'longitude')`
-   2. ``ncread(hsurl,'lat')`→`ncread(hsurl,'latitude')`
-   3. `Significant_height_of_combined_wind_waves_and_swell_surface`→`HTSGW_surface`
-   4. `Primary_wave_mean_period_surface`→`PERPW_surface`
-   5. `Primary_wave_direction_surface`→`DIRPW_surface`
-3. 由于从OPeNDAP获取的数据和转成nc以后的数据存在左右的翻转，因此需要去掉几个 `fliplr`函数：
-
-   1. `griddedInterpolant(daplon,fliplr(daplat),fliplr(hs),method)`→`griddedInterpolant(daplon,daplat,hs,method)`
-   2. `FCr.Values=fliplr(tp)`→`FCr.Values=tp`
-   3. `FCr.Values=fliplr(Dwave_Ax)`→`FCr.Values=Dwave_Ax`
-   4. `FCr.Values=fliplr(Dwave_Ay)`→`FCr.Values=Dwave_Ay`
-4. 在 `timeww3`的定义后修改循环为：
-
-   ```matlab
-   for mm=1:length(timeww3)
-       timeww3(mm)=index; %手动提供时间索引
-       index=index+1;
-       time(mm)=datenum(str2num(yearww3),str2num(mmww3),1,timeww3(mm)*3,0,0); %3是指分辨率为3x
-   end
-   ```
+- 2024年起，下载CMEMS的代码已经过时，需要修改后才可使用。
