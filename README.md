@@ -3,7 +3,7 @@
 
 该工具包为本人进行ROMS相关科研时编写。所有公开的代码可以免费用于学习、科研工作等，但不可用于商业行为，不可盈利。
 
-**如果您使用本人修改的工具（仅`my_tools_`前缀的目录为本人开发，其余来自[COAWST](https://github.com/DOI-USGS/COAWST)）做出了相关成果，如发表了论文等，恳请给本项目点个Star，或引用相关论文（在my_tools_project中有提到）。**
+**如果您使用本人修改的工具（仅`my_tools_`前缀的目录为本人开发，其余来自[COAWST](https://github.com/DOI-USGS/COAWST)）做出了相关成果，如发表了论文等，恳请给本项目点个Star，或酌情考虑引用相关论文（在my_tools_project中有提到，非必要引用反而有违学术严谨性，敬请注意）。**
 
 MATLAB-based pre-processing and post-processing toolkit for ROMS regional ocean models
 
